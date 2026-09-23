@@ -1,0 +1,17 @@
+{
+  "appId": "com.jpbazinet.plexdirector",
+  "appName": "Plex Director",
+  "webDir": "www",
+  "server": {
+    "url": "https://plexdash.jpbazinet.com",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#151923",
+    "allowsLinkPreview": false
+  },
+  "plugins": {
+    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] }
+  }
+}
