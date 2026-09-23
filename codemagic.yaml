@@ -7,6 +7,8 @@ workflows:
     integrations:
       app_store_connect: Plex Director ASC   # the name you give the API key in Codemagic → Teams → Integrations
     environment:
+      groups:
+        - signing   # holds CERTIFICATE_PRIVATE_KEY (Codemagic → app → Environment variables)
       vars:
         BUNDLE_ID: com.jpbazinet.plexdirectorapp
         XCODE_WORKSPACE: ios/App/App.xcworkspace
@@ -25,10 +27,8 @@ workflows:
       - name: Fetch signing files from Apple (creates cert + profile if missing; shows the real error if it can't)
         script: |
           keychain initialize
-          # The distribution certificate is created with an RSA key; keep the key in the build cache so the same certificate is reused.
-          mkdir -p "$HOME/codemagic-certs"
-          [ -f "$HOME/codemagic-certs/cert_key" ] || ssh-keygen -t rsa -b 2048 -m PEM -f "$HOME/codemagic-certs/cert_key" -q -N ""
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --certificate-key="@file:$HOME/codemagic-certs/cert_key" --create
+          # The distribution certificate belongs to this RSA key (a Codemagic secret), so the same certificate is reused every build.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --certificate-key=@env:CERTIFICATE_PRIVATE_KEY --create
           keychain add-certificates
           xcode-project use-profiles
       - name: Set build number
@@ -38,9 +38,6 @@ workflows:
       - name: Build the .ipa
         script: |
           xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
-    cache:
-      cache_paths:
-        - $HOME/codemagic-certs
     artifacts:
       - build/ios/ipa/*.ipa
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
