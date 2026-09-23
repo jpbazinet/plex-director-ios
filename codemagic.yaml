@@ -7,9 +7,6 @@ workflows:
     integrations:
       app_store_connect: Plex Director ASC   # the name you give the API key in Codemagic → Teams → Integrations
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.jpbazinet.plexdirector
       vars:
         BUNDLE_ID: com.jpbazinet.plexdirector
         XCODE_WORKSPACE: ios/App/App.xcworkspace
@@ -21,11 +18,15 @@ workflows:
       - name: Install and create the native project
         script: |
           npm install
+          mkdir -p www && { [ -f www/index.html ] || cp index.html www/index.html; }   # the web folder Capacitor expects
           npx cap add ios
           npx cap sync ios
           sh prepare-ios.sh
-      - name: Set up signing
+      - name: Fetch signing files from Apple (creates cert + profile if missing; shows the real error if it can't)
         script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
           xcode-project use-profiles
       - name: Set build number
         script: |
