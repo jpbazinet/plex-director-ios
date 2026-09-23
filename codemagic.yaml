@@ -25,9 +25,10 @@ workflows:
       - name: Fetch signing files from Apple (creates cert + profile if missing; shows the real error if it can't)
         script: |
           keychain initialize
-          # Drop any existing profiles for this bundle id so a fresh one is generated with the current capabilities (push).
-          for pid in $(app-store-connect profiles list --bundle-id-identifier "$BUNDLE_ID" --json 2>/dev/null | python3 -c 'import sys,json; print(" ".join(p["id"] for p in json.load(sys.stdin)))' 2>/dev/null); do app-store-connect profiles delete "$pid" || true; done
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          # The distribution certificate is created with an RSA key; keep the key in the build cache so the same certificate is reused.
+          mkdir -p "$HOME/codemagic-certs"
+          [ -f "$HOME/codemagic-certs/cert_key" ] || ssh-keygen -t rsa -b 2048 -m PEM -f "$HOME/codemagic-certs/cert_key" -q -N ""
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --certificate-key="@file:$HOME/codemagic-certs/cert_key" --create
           keychain add-certificates
           xcode-project use-profiles
       - name: Set build number
@@ -37,6 +38,9 @@ workflows:
       - name: Build the .ipa
         script: |
           xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
+    cache:
+      cache_paths:
+        - $HOME/codemagic-certs
     artifacts:
       - build/ios/ipa/*.ipa
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
