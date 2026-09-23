@@ -25,6 +25,8 @@ workflows:
       - name: Fetch signing files from Apple (creates cert + profile if missing; shows the real error if it can't)
         script: |
           keychain initialize
+          # Drop any existing profiles for this bundle id so a fresh one is generated with the current capabilities (push).
+          for pid in $(app-store-connect profiles list --bundle-id-identifier "$BUNDLE_ID" --json 2>/dev/null | python3 -c 'import sys,json; print(" ".join(p["id"] for p in json.load(sys.stdin)))' 2>/dev/null); do app-store-connect profiles delete "$pid" || true; done
           app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
           keychain add-certificates
           xcode-project use-profiles
